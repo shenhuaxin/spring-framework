@@ -144,10 +144,15 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	 */
 	@Override
 	public boolean isAutowireCandidate(BeanDefinitionHolder bdHolder, DependencyDescriptor descriptor) {
+		// 这里调用父类的isAutowireCandidate，也就是GenericTypeAwareAutowireCandidateResolver
+		// 这里的 match 为 true 的话， 那么就代表泛型是满足条件的。
 		boolean match = super.isAutowireCandidate(bdHolder, descriptor);
+
 		if (match) {
+			// 这里开始检查 @Qualifier注解，（spring的和javax的）, 这里是字段或者方法参数上的注解
 			match = checkQualifiers(bdHolder, descriptor.getAnnotations());
 			if (match) {
+				// 这里主要就是为了 factoryMethod 添加的。不常见的用法
 				MethodParameter methodParam = descriptor.getMethodParameter();
 				if (methodParam != null) {
 					Method method = methodParam.getMethod();
@@ -168,11 +173,13 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 			return true;
 		}
 		SimpleTypeConverter typeConverter = new SimpleTypeConverter();
+		// 我们可以从这里的for循环看出，只要有一个 @Quafilier 无法匹配，那么就算失败。
+		// 这里的annotationsToSearch中关于@Qualifier的所有注解的条件，候选bean只有都满足的情况下，才算匹配成功
 		for (Annotation annotation : annotationsToSearch) {
 			Class<? extends Annotation> type = annotation.annotationType();
 			boolean checkMeta = true;
 			boolean fallbackToMeta = false;
-			if (isQualifier(type)) {
+			if (isQualifier(type)) {  // 判断是否标注了 @Qualifier ， 如果是直接标注的是 @Qualifier 或者 自定义注解上标注了 @Qualifier 都可以在这里判断出来
 				if (!checkQualifier(bdHolder, annotation, typeConverter)) {
 					fallbackToMeta = true;
 				}
@@ -182,19 +189,24 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 			}
 			if (checkMeta) {
 				boolean foundMeta = false;
-				for (Annotation metaAnn : type.getAnnotations()) {
+				for (Annotation metaAnn : type.getAnnotations()) {  // 再往上解析一层
 					Class<? extends Annotation> metaType = metaAnn.annotationType();
 					if (isQualifier(metaType)) {
 						foundMeta = true;
 						// Only accept fallback match if @Qualifier annotation has a value...
 						// Otherwise it is just a marker for a custom qualifier annotation.
+						// fallbackToMeta && StringUtils.isEmpty(AnnotationUtils.getValue(metaAnn) 这个判断的含义为：
+						// 之前已经判断过 @Qualifier 注解了，并且判断无法匹配，这次往上层找，如果还是 @Qualifier 的值为空，那么上层的 @Qualifier 注解是没有什么实际意义的。
+						// 就跟我们继承了一个 A 接口的类，然后又实现了 A 接口， 只是做标注用的。
 						if ((fallbackToMeta && StringUtils.isEmpty(AnnotationUtils.getValue(metaAnn))) ||
 								!checkQualifier(bdHolder, metaAnn, typeConverter)) {
+							// 找到元信息了， 但是元信息的内容没有特意指定，或者元信息的注解也没有匹配上，直接返回失败。
 							return false;
 						}
 					}
 				}
 				if (fallbackToMeta && !foundMeta) {
+					// 回退到找注解的元信息， 但是没有找到元信息，直接返回失败。
 					return false;
 				}
 			}
@@ -207,6 +219,7 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	 */
 	protected boolean isQualifier(Class<? extends Annotation> annotationType) {
 		for (Class<? extends Annotation> qualifierType : this.qualifierTypes) {
+			// isAnnotationPresent 的用法，@see ANNOTATION-0001
 			if (annotationType.equals(qualifierType) || annotationType.isAnnotationPresent(qualifierType)) {
 				return true;
 			}
@@ -227,7 +240,7 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 		if (qualifier == null) {
 			qualifier = bd.getQualifier(ClassUtils.getShortName(type));
 		}
-		if (qualifier == null) {
+		if (qualifier == null) {  // 使用注解的方式
 			// First, check annotation on qualified element, if any
 			Annotation targetAnnotation = getQualifiedElementAnnotation(bd, type);
 			// Then, check annotation on factory method, if applicable
@@ -257,7 +270,10 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 					targetAnnotation = AnnotationUtils.getAnnotation(ClassUtils.getUserClass(bd.getBeanClass()), type);
 				}
 			}
+			// 这里的equals是会判断值是否相等， 判断逻辑在SynthesizedMergedAnnotationInvocationHandler的invoke函数中。
+			// 这也就是 @Qualifier 可以使用 value 作为限定符， 也可以创建另外一个注解例如@LoadBalance 作为注入时的限定符
 			if (targetAnnotation != null && targetAnnotation.equals(annotation)) {
+				// 使用@Bean+@Qualifier的方式，是从这里返回的。 @LoadBalance注解是从这里返回的。
 				return true;
 			}
 		}

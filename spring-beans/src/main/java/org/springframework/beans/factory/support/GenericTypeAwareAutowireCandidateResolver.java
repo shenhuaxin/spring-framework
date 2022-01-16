@@ -63,6 +63,7 @@ public class GenericTypeAwareAutowireCandidateResolver extends SimpleAutowireCan
 	@Override
 	public boolean isAutowireCandidate(BeanDefinitionHolder bdHolder, DependencyDescriptor descriptor) {
 		if (!super.isAutowireCandidate(bdHolder, descriptor)) {
+			// 这里判断的是这个beanDefinition是否可以作为一个候选bean. 可以通过 @Bean(autowireCandidate = false) 进行设置
 			// If explicitly false, do not proceed with any other checks...
 			return false;
 		}
@@ -136,6 +137,8 @@ public class GenericTypeAwareAutowireCandidateResolver extends SimpleAutowireCan
 			return true;
 		}
 		// Full check for complex generic type match...
+		// 这里会判断泛型的类型是否匹配，@see AUTOWIRED-0001
+		// A.isAssignableFrom(B) ， 这里判断 A 是否为 B 的超类或者接口
 		return dependencyType.isAssignableFrom(targetType);
 	}
 

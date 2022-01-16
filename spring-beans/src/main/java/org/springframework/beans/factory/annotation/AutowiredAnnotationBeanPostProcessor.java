@@ -627,7 +627,7 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 		protected void inject(Object bean, @Nullable String beanName, @Nullable PropertyValues pvs) throws Throwable {
 			Field field = (Field) this.member;
 			Object value;
-			if (this.cached) {
+			if (this.cached) {  // 这里判断的是有没有缓存过
 				try {
 					value = resolvedCachedArgument(beanName, this.cachedFieldValue);
 				}
@@ -637,16 +637,19 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 				}
 			}
 			else {
+				// 第一次没有缓存，就会走到这里。
 				value = resolveFieldValue(field, bean, beanName);
 			}
 			if (value != null) {
 				ReflectionUtils.makeAccessible(field);
+				// 将获取到的Bean注入到 field 中。
 				field.set(bean, value);
 			}
 		}
 
 		@Nullable
 		private Object resolveFieldValue(Field field, Object bean, @Nullable String beanName) {
+			// 这里的依赖描述为字段依赖，required 默认为 true .
 			DependencyDescriptor desc = new DependencyDescriptor(field, this.required);
 			desc.setContainingClass(bean.getClass());
 			Set<String> autowiredBeanNames = new LinkedHashSet<>(1);
@@ -654,12 +657,15 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 			TypeConverter typeConverter = beanFactory.getTypeConverter();
 			Object value;
 			try {
+				// 这里就是从 beanFactory 中找到对应的 Bean ,
+				// 还有可能是集合的方式注入， 所以这里加了 autowiredBeanNames 和 typeConverter
 				value = beanFactory.resolveDependency(desc, beanName, autowiredBeanNames, typeConverter);
 			}
 			catch (BeansException ex) {
 				throw new UnsatisfiedDependencyException(null, beanName, new InjectionPoint(field), ex);
 			}
 			synchronized (this) {
+				//? 这里是缓存逻辑，全局缓存, 所以只能缓存单个Bean注入的逻辑而且这里的
 				if (!this.cached) {
 					Object cachedFieldValue = null;
 					if (value != null || this.required) {
