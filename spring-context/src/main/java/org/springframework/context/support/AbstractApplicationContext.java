@@ -517,40 +517,54 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	public void refresh() throws BeansException, IllegalStateException {
 		synchronized (this.startupShutdownMonitor) {
 			// Prepare this context for refreshing.
+			//? 1. 初始化前的预处理：处理了个啥
 			prepareRefresh();
 
 			// Tell the subclass to refresh the internal bean factory.
+			// 2. 获取BeanFactory, 加载所有Bean的定义信息（xml）
 			ConfigurableListableBeanFactory beanFactory = obtainFreshBeanFactory();
 
 			// Prepare the bean factory for use in this context.
+			// 3. BeanFactory预处理
 			prepareBeanFactory(beanFactory);
 
 			try {
 				// Allows post-processing of the bean factory in context subclasses.
+				// 4. 准备BeanFactory完成后进行的后置处理
 				postProcessBeanFactory(beanFactory);
 
 				// Invoke factory processors registered as beans in the context.
+				// 5. 执行BeanFactory创建后的后置处理器
 				invokeBeanFactoryPostProcessors(beanFactory);
 
 				// Register bean processors that intercept bean creation.
+				// 6. 注册Bean的后置处理器
 				registerBeanPostProcessors(beanFactory);
 
 				// Initialize message source for this context.
+				// 7. 初始化MessageSource
 				initMessageSource();
 
 				// Initialize event multicaster for this context.
+				// 8. 初始化事件派发器
 				initApplicationEventMulticaster();
 
 				// Initialize other special beans in specific context subclasses.
+				// 9. 子类的多态onRefresh
 				onRefresh();
 
 				// Check for listener beans and register them.
+				// 10. 注册监听器
 				registerListeners();
 
+				//到此为止，BeanFactory已创建完成
+
 				// Instantiate all remaining (non-lazy-init) singletons.
+				// 11. 初始化所有剩下的单例Bean
 				finishBeanFactoryInitialization(beanFactory);
 
 				// Last step: publish corresponding event.
+				// 12. 完成容器的创建工作
 				finishRefresh();
 			}
 
@@ -573,6 +587,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 			finally {
 				// Reset common introspection caches in Spring's core, since we
 				// might not ever need metadata for singleton beans anymore...
+				// 13. 清除缓存
 				resetCommonCaches();
 			}
 		}
@@ -584,9 +599,9 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	 */
 	protected void prepareRefresh() {
 		// Switch to active.
-		this.startupDate = System.currentTimeMillis();
-		this.closed.set(false);
-		this.active.set(true);
+		this.startupDate = System.currentTimeMillis();   // 记录ioc容器启动时间
+		this.closed.set(false);                          // 关闭设置为false
+		this.active.set(true);							 // 活跃设置为true
 
 		if (logger.isDebugEnabled()) {
 			if (logger.isTraceEnabled()) {
@@ -598,10 +613,12 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		}
 
 		// Initialize any placeholder property sources in the context environment.
+		// 初始化属性配置
 		initPropertySources();
 
 		// Validate that all properties marked as required are resolvable:
 		// see ConfigurablePropertyResolver#setRequiredProperties
+		// 属性校验
 		getEnvironment().validateRequiredProperties();
 
 		// Store pre-refresh ApplicationListeners...
@@ -616,6 +633,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 
 		// Allow for the collection of early ApplicationEvents,
 		// to be published once the multicaster is available...
+		// 保存容器中的一些事件，在合适的时候会将这些事件进行发布
 		this.earlyApplicationEvents = new LinkedHashSet<>();
 	}
 
