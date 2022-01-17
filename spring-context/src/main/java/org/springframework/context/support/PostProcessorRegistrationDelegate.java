@@ -59,6 +59,7 @@ final class PostProcessorRegistrationDelegate {
 		// Invoke BeanDefinitionRegistryPostProcessors first, if any.
 		Set<String> processedBeans = new HashSet<>();
 
+		// 这个BeanFactory实现了BeanDefinitionRegistry接口的话, 那么他就具有了添加beanDefinition的能力
 		if (beanFactory instanceof BeanDefinitionRegistry) {
 			BeanDefinitionRegistry registry = (BeanDefinitionRegistry) beanFactory;
 			List<BeanFactoryPostProcessor> regularPostProcessors = new ArrayList<>();
@@ -66,6 +67,9 @@ final class PostProcessorRegistrationDelegate {
 
 			for (BeanFactoryPostProcessor postProcessor : beanFactoryPostProcessors) {
 				if (postProcessor instanceof BeanDefinitionRegistryPostProcessor) {
+					// 如何这个BeanFactoryPostProcessor是BeanDefinitionRegistryPostProcessor的话，
+					// 那么会将 postProcessBeanDefinitionRegistry 函数执行。
+					// 但是BeanFactoryPostProcessor接口中的函数暂时不会执行。
 					BeanDefinitionRegistryPostProcessor registryProcessor =
 							(BeanDefinitionRegistryPostProcessor) postProcessor;
 					registryProcessor.postProcessBeanDefinitionRegistry(registry);
@@ -130,6 +134,15 @@ final class PostProcessorRegistrationDelegate {
 			// Now, invoke the postProcessBeanFactory callback of all processors handled so far.
 			invokeBeanFactoryPostProcessors(registryProcessors, beanFactory);
 			invokeBeanFactoryPostProcessors(regularPostProcessors, beanFactory);
+
+			// 在这里为什么会通过两种不同的方式获取BeanDefinitionRegistryPostProcessor呢， 一个是入参， 一个是BeanFactory.
+			// 因为他们的添加方式是不同的，一个是通过 applicationContext.addBeanFactoryPostProcessor 添加进来的，可以在refresh调用之前进行添加。
+			// 一个是通过注册Bean的方式添加进来的。
+
+			// 执行到了这里，我们还注意到一个东西就是，到了这里只从BeanFactory中获取了 BeanDefinitionRegistryPostProcessor，
+			// 没有获取 BeanFactoryPostProcessor， 这是因为上面添加了一个条件 beanFactory instanceof BeanDefinitionRegistry .
+			// 所以在这个if判断中，先之将 BeanDefinitionRegistryPostProcessor 的两个回调接口执行掉。
+			// 但是哪怕为 BeanFactoryPostProcessor， 也会把入参 beanFactoryPostProcessors 的 postProcessBeanFactory 函数给执行了，
 		}
 
 		else {
@@ -137,6 +150,7 @@ final class PostProcessorRegistrationDelegate {
 			invokeBeanFactoryPostProcessors(beanFactoryPostProcessors, beanFactory);
 		}
 
+		// 到了这里，就开始执行 BeanFactoryPostProcessor 接口了。
 		// Do not initialize FactoryBeans here: We need to leave all regular beans
 		// uninitialized to let the bean factory post-processors apply to them!
 		String[] postProcessorNames =

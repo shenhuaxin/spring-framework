@@ -1493,6 +1493,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 				this, requiredType, true, descriptor.isEager());
 		Map<String, Object> result = new LinkedHashMap<>(candidateNames.length);
 		// 1. 先处理Spring内部的几个依赖，分别为 BeanFactory、ResourceLoader、ApplicationEventPublisher、ApplicationContext
+		// 为什么这里要先处理这四个依赖呢？ 因为这几个bean是无法在beanFactory中获取的。所以要先在这里进行处理。
 		for (Map.Entry<Class<?>, Object> classObjectEntry : this.resolvableDependencies.entrySet()) {
 			Class<?> autowiringType = classObjectEntry.getKey();
 			if (autowiringType.isAssignableFrom(requiredType)) {
