@@ -155,6 +155,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 		Assert.notNull(singletonFactory, "Singleton factory must not be null");
 		synchronized (this.singletonObjects) {
 			if (!this.singletonObjects.containsKey(beanName)) {
+				// 添加到三级缓存中。从二级缓存中移除
 				this.singletonFactories.put(beanName, singletonFactory);
 				this.earlySingletonObjects.remove(beanName);
 				this.registeredSingletons.add(beanName);
@@ -179,18 +180,25 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	@Nullable
 	protected Object getSingleton(String beanName, boolean allowEarlyReference) {
 		// Quick check for existing instance without full singleton lock
+		// 判断一级缓存是否有这个bean , 在循环依赖的情况下，这里是为 null 的。之后完全创建好的bean, 才会存在一级缓冲中。
 		Object singletonObject = this.singletonObjects.get(beanName);
+		// isSingletonCurrentlyInCreation  这里存放的是正在创建的bean， 如果这个 bean 是正在创建的。
+		// 那么就说明可能就进入到循环依赖了
 		if (singletonObject == null && isSingletonCurrentlyInCreation(beanName)) {
+			// earlySingletonObjects 中是创建好，但是还没有进行初始化的bean. 循环依赖的时候，这里还是为 null .
 			singletonObject = this.earlySingletonObjects.get(beanName);
 			if (singletonObject == null && allowEarlyReference) {
 				synchronized (this.singletonObjects) {
 					// Consistent creation of early reference within full singleton lock
+					// 加锁之后又判断一遍。
 					singletonObject = this.singletonObjects.get(beanName);
 					if (singletonObject == null) {
 						singletonObject = this.earlySingletonObjects.get(beanName);
 						if (singletonObject == null) {
+							// 在第三层缓存中取出
 							ObjectFactory<?> singletonFactory = this.singletonFactories.get(beanName);
 							if (singletonFactory != null) {
+								// 创建bean, 放入二级缓冲中，从三级缓冲中移除。
 								singletonObject = singletonFactory.getObject();
 								this.earlySingletonObjects.put(beanName, singletonObject);
 								this.singletonFactories.remove(beanName);
@@ -225,7 +233,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 				if (logger.isDebugEnabled()) {
 					logger.debug("Creating shared instance of singleton bean '" + beanName + "'");
 				}
-				// 判断singletonsCurrentlyInCreation这个集合中是否包含这个 beanName
+				// 判断singletonsCurrentlyInCreation这个集合中是否包含这个 beanName, 如果不包含，就尝试添加，添加失败就报错。
 				beforeSingletonCreation(beanName);
 				boolean newSingleton = false;
 				boolean recordSuppressedExceptions = (this.suppressedExceptions == null);
